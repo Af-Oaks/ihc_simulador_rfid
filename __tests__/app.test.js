@@ -41,12 +41,12 @@ describe('S.H.A.P.E. Prototype App', () => {
     test('deve simular aproximação RFID e mostrar dashboard com as opcoes de treino', () => {
         simulateRFID('456');
         const appRoot = document.getElementById('app-root');
-        expect(appRoot.innerHTML).toContain('Olá, Maria!');
-        expect(appRoot.innerHTML).toContain('Selecione seu Treino:');
+        expect(appRoot.innerHTML).toContain('Bem-vinda, Maria!');
+        expect(appRoot.innerHTML).toContain('Escolha o foco do seu treino:');
         expect(appRoot.innerHTML).toContain('Treino A (Pernas)');
         expect(appRoot.innerHTML).toContain('Treino B (Superiores)');
         expect(appRoot.innerHTML).toContain('Treino C (Perda de Peso)');
-        expect(global.SpeechSynthesisUtterance).toHaveBeenCalledWith('Bem-vinda, Maria');
+        expect(global.SpeechSynthesisUtterance).toHaveBeenCalledWith('Olá, Maria. Bem-vinda de volta.');
     });
 
     test('deve iniciar treino A e apresentar o primeiro exercicio', () => {
@@ -61,7 +61,7 @@ describe('S.H.A.P.E. Prototype App', () => {
         expect(appRoot.innerHTML).toContain('Agachamento Livre (1/3)');
         expect(appRoot.innerHTML).toContain('Mantenha a coluna reta');
         
-        expect(global.SpeechSynthesisUtterance).toHaveBeenCalledWith(expect.stringContaining('Iniciando Treino A - Pernas. Primeiro exercício: Agachamento Livre.'));
+        expect(global.SpeechSynthesisUtterance).toHaveBeenCalledWith(expect.stringContaining('Iniciando o Treino A - Pernas. Eu vou guiar você. O primeiro exercício é Agachamento Livre.'));
     });
 
     test('deve navegar pelos exercicios ate o final do treino', () => {
@@ -75,14 +75,14 @@ describe('S.H.A.P.E. Prototype App', () => {
         
         const appRoot = document.getElementById('app-root');
         expect(appRoot.innerHTML).toContain('Leg Press (2/3)');
-        expect(global.SpeechSynthesisUtterance).toHaveBeenCalledWith('Próximo exercício: Leg Press.');
+        expect(global.SpeechSynthesisUtterance).toHaveBeenCalledWith(expect.stringContaining('próximo exercício: Leg Press.'));
         
         // No exercicio 2, clica em proximo
         const btnNext2 = document.getElementById('btn-next-exercise');
         btnNext2.click();
         
         expect(appRoot.innerHTML).toContain('Cadeira Extensora (3/3)');
-        expect(global.SpeechSynthesisUtterance).toHaveBeenCalledWith('Próximo exercício: Cadeira Extensora.');
+        expect(global.SpeechSynthesisUtterance).toHaveBeenCalledWith(expect.stringContaining('próximo exercício: Cadeira Extensora.'));
         
         // No exercicio 3 (ultimo), o botão deve ser Finalizar
         const btnNext3 = document.getElementById('btn-next-exercise');
@@ -117,7 +117,7 @@ describe('S.H.A.P.E. Prototype App', () => {
         jest.advanceTimersByTime(10000);
         
         const motivationText = document.getElementById('motivation-text');
-        expect(motivationText.textContent).toContain('Vamos lá! Não pare agora!');
+        expect(motivationText.textContent).toContain('Estou acompanhando você. Vamos lá, não desista!');
         
         // Simular movimento (acelerômetro) zera a inatividade e limpa o texto
         const btnMove = document.getElementById('btn-move');

@@ -116,7 +116,8 @@ function renderWelcomeScreen() {
         appRoot.innerHTML = `
             <div class="welcome-screen">
                 <h1>S.H.A.P.E.</h1>
-                <p>Aproxime sua pulseira/tag para iniciar o seu treino.</p>
+                <p>Olá! Sou o seu assistente de hardware do Studio GS-Fit.</p>
+                <p><strong>Aproxime sua pulseira ou tag para que eu possa identificar o seu perfil e preparar o seu treino de hoje.</strong></p>
             </div>
         `;
     }
@@ -131,12 +132,14 @@ function renderDashboard(user) {
     if(appRoot) {
         appRoot.innerHTML = `
             <div class="dashboard">
-                <h2>Olá, ${user.name}!</h2>
-                <p><strong>Objetivo:</strong> ${user.goal}</p>
-                <p class="warning-text"><strong>Atenção Médica:</strong> ${user.condition}</p>
+                <h2>Bem-vinda, ${user.name}!</h2>
+                
+                <div class="semiotic-message">
+                    <p><em>"Eu identifiquei que seu principal objetivo é <strong>${user.goal}</strong> e levarei em consideração a sua restrição médica: <strong>${user.condition}</strong>. Com base nisso, eu organizei os seguintes treinos para você realizar de forma segura hoje:"</em></p>
+                </div>
                 
                 <div class="workout-selection">
-                    <h3>Selecione seu Treino:</h3>
+                    <h3>Escolha o foco do seu treino:</h3>
                     <button class="primary-action btn-workout" data-workout="A">Treino A (Pernas)</button>
                     <button class="primary-action btn-workout" data-workout="B">Treino B (Superiores)</button>
                     <button class="primary-action btn-workout" data-workout="C">Treino C (Perda de Peso)</button>
@@ -166,7 +169,7 @@ function startWorkout(user, workoutType) {
 
     if(state.timerInterval) clearInterval(state.timerInterval);
     
-    speak(`Iniciando ${state.currentWorkout.name}. Primeiro exercício: ${state.currentWorkout.exercises[0].name}.`);
+    speak(`Tudo pronto, ${user.name}. Iniciando o ${state.currentWorkout.name}. Eu vou guiar você. O primeiro exercício é ${state.currentWorkout.exercises[0].name}.`);
     
     renderExerciseScreen(user);
     startTimer();
@@ -176,7 +179,7 @@ function nextExercise(user) {
     if (state.currentExerciseIndex < state.currentWorkout.exercises.length - 1) {
         state.currentExerciseIndex++;
         const ex = state.currentWorkout.exercises[state.currentExerciseIndex];
-        speak(`Próximo exercício: ${ex.name}.`);
+        speak(`Muito bem! Agora vamos para o próximo exercício: ${ex.name}. Observe o visor para instruções.`);
         renderExerciseScreen(user);
     }
 }
@@ -198,15 +201,18 @@ function renderExerciseScreen(user) {
                 <div class="exercise-info">
                     <h3>${ex.name} (${state.currentExerciseIndex + 1}/${state.currentWorkout.exercises.length})</h3>
                     <p>Séries: ${ex.sets} | Repetições/Tempo: ${ex.reps}</p>
-                    <p style="color: #bdc3c7;"><em>Instrução: ${ex.instruction}</em></p>
+                    <div class="semiotic-instruction">
+                        <p><strong>Minha dica:</strong> ${ex.instruction}</p>
+                    </div>
                 </div>
                 
                 <div class="gif-container">
-                    <img src="${ex.gif}" alt="Animação do Exercício">
+                    <img src="${ex.gif}" alt="Animação demonstrativa de como fazer o exercício ${ex.name}">
                 </div>
 
                 <div class="bpm-display">
                     <span class="bpm-icon">❤️</span> <span id="bpm-value">${state.bpm}</span> BPM
+                    <span class="bpm-tooltip" title="Estou monitorando seu coração para sua segurança. Se passar de 180, eu chamo ajuda!">ℹ️</span>
                 </div>
 
                 <div class="timer" id="workout-timer">${formatTime(state.workoutSeconds)}</div>
@@ -253,9 +259,9 @@ function startTimer() {
             updateTimerDisplay();
 
             if (state.inactivitySeconds >= 10) {
-                speak("Vamos lá, você consegue! Mantenha o ritmo do exercício!");
+                speak("Notei que você parou. Vamos lá, você consegue! Mantenha o ritmo!");
                 const motivationText = document.getElementById('motivation-text');
-                if (motivationText) motivationText.textContent = "Vamos lá! Não pare agora!";
+                if (motivationText) motivationText.textContent = "Estou acompanhando você. Vamos lá, não desista!";
                 state.inactivitySeconds = 0; 
             }
         }
@@ -270,11 +276,11 @@ function togglePauseWorkout() {
     const statusLed = document.getElementById('status-led');
     
     if (state.isPaused) {
-        speak("Treino pausado.");
+        speak("Treino pausado. Descanse um pouco e retome quando estiver pronto.");
         if(btnPause) btnPause.textContent = 'Retomar';
         if(statusLed) statusLed.className = 'led-indicator blue';
     } else {
-        speak("Treino retomado.");
+        speak("Treino retomado. Vamos voltar ao foco!");
         if(btnPause) btnPause.textContent = 'Pausar';
         if(statusLed) statusLed.className = 'led-indicator blinking-green';
         state.inactivitySeconds = 0; 
@@ -284,7 +290,7 @@ function togglePauseWorkout() {
 function finishWorkout(user) {
     if(state.timerInterval) clearInterval(state.timerInterval);
     state.workoutActive = false;
-    speak(`Treino concluído. Bom trabalho, ${user.name}!`);
+    speak(`Treino concluído com sucesso. Parabéns pela dedicação, ${user.name}!`);
     renderWorkoutSummary(user);
 }
 
@@ -297,6 +303,9 @@ function renderWorkoutSummary(user) {
         appRoot.innerHTML = `
             <div class="summary-screen">
                 <h2>Treino Concluído!</h2>
+                <div class="semiotic-message">
+                    <p><em>"Eu registrei todo o seu progresso. Você foi excelente!"</em></p>
+                </div>
                 <p>Parabéns, ${user.name}!</p>
                 <p>Tempo total ativo: ${formatTime(state.workoutSeconds)}</p>
                 <button id="btn-home" class="primary-action">Sair (Aproximar Tag)</button>
@@ -306,7 +315,7 @@ function renderWorkoutSummary(user) {
         const btnHome = document.getElementById('btn-home');
         if(btnHome) {
             btnHome.addEventListener('click', () => {
-                speak("Sessão finalizada. Até logo!");
+                speak("Sessão finalizada. Estou aguardando você para o próximo treino. Até logo!");
                 renderWelcomeScreen();
             });
         }
@@ -316,10 +325,10 @@ function renderWorkoutSummary(user) {
 function simulateRFID(tagId) {
     const user = state.users[tagId];
     if (user) {
-        speak(`Bem-vinda, ${user.name}`);
+        speak(`Olá, ${user.name}. Bem-vinda de volta.`);
         renderDashboard(user);
     } else {
-        speak("Usuário não encontrado.");
+        speak("Desculpe, não consegui encontrar o seu perfil. Tente novamente.");
         alert("Usuário não encontrado.");
     }
 }
