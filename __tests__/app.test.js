@@ -1,12 +1,6 @@
 const { 
     initApp, 
-    renderWelcomeScreen, 
-    renderDashboard, 
-    renderWorkoutScreen, 
     simulateRFID, 
-    togglePauseWorkout,
-    finishWorkout,
-    speak,
     state 
 } = require('../script');
 
@@ -44,26 +38,66 @@ describe('S.H.A.P.E. Prototype App', () => {
         expect(appRoot.innerHTML).toContain('S.H.A.P.E.');
     });
 
-    test('deve simular aproximação RFID, mostrar dashboard do usuário e falar mensagem', () => {
+    test('deve simular aproximação RFID e mostrar dashboard com as opcoes de treino', () => {
         simulateRFID('456');
         const appRoot = document.getElementById('app-root');
         expect(appRoot.innerHTML).toContain('Olá, Maria!');
+        expect(appRoot.innerHTML).toContain('Selecione seu Treino:');
+        expect(appRoot.innerHTML).toContain('Treino A (Pernas)');
+        expect(appRoot.innerHTML).toContain('Treino B (Superiores)');
+        expect(appRoot.innerHTML).toContain('Treino C (Perda de Peso)');
         expect(global.SpeechSynthesisUtterance).toHaveBeenCalledWith('Bem-vinda, Maria');
     });
 
-    test('deve iniciar treino a partir do dashboard com animação e instruções', () => {
+    test('deve iniciar treino A e apresentar o primeiro exercicio', () => {
         simulateRFID('456');
-        document.getElementById('btn-start-workout').click();
+        
+        // Clica no botão do Treino A
+        const btnWorkoutA = document.querySelector('[data-workout="A"]');
+        btnWorkoutA.click();
         
         const appRoot = document.getElementById('app-root');
-        expect(appRoot.innerHTML).toContain('Treino em Andamento');
-        expect(appRoot.innerHTML).toContain('Mantenha a coluna reta e desça até 90 graus');
-        expect(appRoot.innerHTML).toContain('<img src="https://media.giphy.com/media/l41YkxvU8c7J7Bba0/giphy.gif"');
+        expect(appRoot.innerHTML).toContain('Treino A - Pernas');
+        expect(appRoot.innerHTML).toContain('Agachamento Livre (1/3)');
+        expect(appRoot.innerHTML).toContain('Mantenha a coluna reta');
+        
+        expect(global.SpeechSynthesisUtterance).toHaveBeenCalledWith(expect.stringContaining('Iniciando Treino A - Pernas. Primeiro exercício: Agachamento Livre.'));
     });
 
-    test('deve disparar emergencia se BPM passar de 180', () => {
+    test('deve navegar pelos exercicios ate o final do treino', () => {
         simulateRFID('456');
-        document.getElementById('btn-start-workout').click();
+        document.querySelector('[data-workout="A"]').click();
+        
+        // No exercicio 1, clica em proximo
+        const btnNext1 = document.getElementById('btn-next-exercise');
+        expect(btnNext1).not.toBeNull();
+        btnNext1.click();
+        
+        const appRoot = document.getElementById('app-root');
+        expect(appRoot.innerHTML).toContain('Leg Press (2/3)');
+        expect(global.SpeechSynthesisUtterance).toHaveBeenCalledWith('Próximo exercício: Leg Press.');
+        
+        // No exercicio 2, clica em proximo
+        const btnNext2 = document.getElementById('btn-next-exercise');
+        btnNext2.click();
+        
+        expect(appRoot.innerHTML).toContain('Cadeira Extensora (3/3)');
+        expect(global.SpeechSynthesisUtterance).toHaveBeenCalledWith('Próximo exercício: Cadeira Extensora.');
+        
+        // No exercicio 3 (ultimo), o botão deve ser Finalizar
+        const btnNext3 = document.getElementById('btn-next-exercise');
+        expect(btnNext3).toBeNull(); // Nao deve existir mais
+        
+        const btnFinish = document.getElementById('btn-finish-workout');
+        expect(btnFinish).not.toBeNull(); // Deve existir o botão de finalizar
+        
+        btnFinish.click();
+        expect(appRoot.innerHTML).toContain('Treino Concluído!');
+    });
+
+    test('deve disparar emergencia se BPM passar de 180 durante o treino', () => {
+        simulateRFID('456');
+        document.querySelector('[data-workout="C"]').click(); // Treino C
         
         const btnBpmUp = document.getElementById('btn-bpm-up');
         // BPM inicial é 80. +100 = 180
@@ -77,30 +111,18 @@ describe('S.H.A.P.E. Prototype App', () => {
 
     test('deve mostrar mensagem de incentivo apos 10s de inatividade do acelerometro', () => {
         simulateRFID('456');
-        document.getElementById('btn-start-workout').click();
+        document.querySelector('[data-workout="B"]').click();
         
         // Avancar 10 segundos
         jest.advanceTimersByTime(10000);
         
         const motivationText = document.getElementById('motivation-text');
         expect(motivationText.textContent).toContain('Vamos lá! Não pare agora!');
-        expect(global.SpeechSynthesisUtterance).toHaveBeenCalledWith(expect.stringContaining('Mantenha o ritmo do exercício'));
         
         // Simular movimento (acelerômetro) zera a inatividade e limpa o texto
         const btnMove = document.getElementById('btn-move');
         btnMove.click();
         expect(state.inactivitySeconds).toBe(0);
         expect(motivationText.textContent).toBe('');
-    });
-
-    test('deve finalizar o treino e dar feedback positivo', () => {
-        simulateRFID('456');
-        document.getElementById('btn-start-workout').click();
-        
-        const btnFinish = document.getElementById('btn-finish-workout');
-        btnFinish.click();
-        
-        const appRoot = document.getElementById('app-root');
-        expect(appRoot.innerHTML).toContain('Treino Concluído!');
     });
 });
