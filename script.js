@@ -7,7 +7,10 @@ const state = {
     workoutActive: false,
     workoutSeconds: 0,
     isPaused: false,
-    timerInterval: null
+    timerInterval: null,
+    bpm: 80,
+    inactivitySeconds: 0,
+    emergencyTriggered: false
 };
 
 function speak(text) {
@@ -19,25 +22,64 @@ function speak(text) {
     }
 }
 
+function triggerEmergency(reason) {
+    state.emergencyTriggered = true;
+    speak(reason);
+    alert(reason);
+    const statusLed = document.getElementById('status-led');
+    if(statusLed) statusLed.className = 'led-indicator danger-action';
+    if(state.timerInterval) clearInterval(state.timerInterval);
+}
+
 function initApp() {
     const btnRfid = document.getElementById('btn-rfid');
-    if (btnRfid) {
-        btnRfid.addEventListener('click', () => simulateRFID('456'));
-    }
+    if (btnRfid) btnRfid.addEventListener('click', () => simulateRFID('456'));
+    
     const btnEmergency = document.getElementById('btn-emergency');
-    if (btnEmergency) {
-        btnEmergency.addEventListener('click', () => {
-            speak('Emergência acionada. Aguarde assistência.');
-            alert('Emergência acionada! Assistência solicitada.');
-        });
-    }
+    if (btnEmergency) btnEmergency.addEventListener('click', () => {
+        triggerEmergency('Emergência acionada manualmente. Aguarde assistência.');
+    });
+
+    const btnBpmUp = document.getElementById('btn-bpm-up');
+    if (btnBpmUp) btnBpmUp.addEventListener('click', () => {
+        state.bpm += 10;
+        updateSensorsDisplay();
+    });
+
+    const btnBpmDown = document.getElementById('btn-bpm-down');
+    if (btnBpmDown) btnBpmDown.addEventListener('click', () => {
+        state.bpm = Math.max(40, state.bpm - 10);
+        updateSensorsDisplay();
+    });
+
+    const btnMove = document.getElementById('btn-move');
+    if (btnMove) btnMove.addEventListener('click', () => {
+        state.inactivitySeconds = 0;
+        const motivationText = document.getElementById('motivation-text');
+        if (motivationText) motivationText.textContent = ''; 
+    });
+
     renderWelcomeScreen();
+}
+
+function updateSensorsDisplay() {
+    const bpmDisplay = document.getElementById('bpm-value');
+    if (bpmDisplay) {
+        bpmDisplay.textContent = state.bpm;
+    }
+    
+    // Checagem de segurança (BPM muito alto)
+    if (state.bpm >= 180 && !state.emergencyTriggered && state.workoutActive) {
+        triggerEmergency("Batimento cardíaco muito alto detectado! Emergência acionada automaticamente.");
+    }
 }
 
 function renderWelcomeScreen() {
     const appRoot = document.getElementById('app-root');
     const statusLed = document.getElementById('status-led');
     state.currentUser = null;
+    state.workoutActive = false;
+    state.emergencyTriggered = false;
     if (state.timerInterval) clearInterval(state.timerInterval);
 
     if(statusLed) statusLed.className = 'led-indicator blue';
@@ -62,7 +104,7 @@ function renderDashboard(user) {
             <div class="dashboard">
                 <h2>Olá, ${user.name}!</h2>
                 <p><strong>Objetivo:</strong> ${user.goal}</p>
-                <p class="warning-text"><strong>Atenção:</strong> ${user.condition}</p>
+                <p class="warning-text"><strong>Atenção Médica:</strong> ${user.condition}</p>
                 <button id="btn-start-workout" class="primary-action">Iniciar Treino de Hoje</button>
             </div>
         `;
@@ -84,19 +126,35 @@ function renderWorkoutScreen(user) {
     state.workoutActive = true;
     state.workoutSeconds = 0;
     state.isPaused = false;
-    if(state.timerInterval) clearInterval(state.timerInterval);
+    state.bpm = 80;
+    state.inactivitySeconds = 0;
+    state.emergencyTriggered = false;
 
+    if(state.timerInterval) clearInterval(state.timerInterval);
     if(statusLed) statusLed.className = 'led-indicator blinking-green';
     
     if(appRoot) {
         appRoot.innerHTML = `
             <div class="workout-screen">
                 <h2>Treino em Andamento</h2>
+                
                 <div class="exercise-info">
                     <h3>Agachamento Livre</h3>
                     <p>Séries: 3 | Repetições: 12</p>
+                    <p style="color: #bdc3c7;"><em>Instrução: Mantenha a coluna reta e desça até 90 graus.</em></p>
                 </div>
+                
+                <div class="gif-container">
+                    <img src="https://media.giphy.com/media/l41YkxvU8c7J7Bba0/giphy.gif" alt="Animação do Exercício">
+                </div>
+
+                <div class="bpm-display">
+                    <span class="bpm-icon">❤️</span> <span id="bpm-value">${state.bpm}</span> BPM
+                </div>
+
                 <div class="timer" id="workout-timer">00:00</div>
+                <div id="motivation-text" class="motivation-text"></div>
+
                 <div class="actions">
                     <button id="btn-pause-workout" class="secondary-action">Pausar</button>
                     <button id="btn-finish-workout" class="danger-action">Finalizar</button>
@@ -122,14 +180,25 @@ function updateTimerDisplay() {
 
 function startTimer() {
     state.timerInterval = setInterval(() => {
-        if (!state.isPaused) {
+        if (!state.isPaused && !state.emergencyTriggered) {
             state.workoutSeconds++;
+            state.inactivitySeconds++;
             updateTimerDisplay();
+
+            // Lógica de inatividade do acelerômetro
+            if (state.inactivitySeconds >= 10) {
+                speak("Vamos lá, você consegue! Mantenha o ritmo do exercício!");
+                const motivationText = document.getElementById('motivation-text');
+                if (motivationText) motivationText.textContent = "Vamos lá! Não pare agora!";
+                state.inactivitySeconds = 0; // Reseta para não flodar o alerta
+            }
         }
     }, 1000);
 }
 
 function togglePauseWorkout() {
+    if(state.emergencyTriggered) return;
+
     state.isPaused = !state.isPaused;
     const btnPause = document.getElementById('btn-pause-workout');
     const statusLed = document.getElementById('status-led');
@@ -142,6 +211,7 @@ function togglePauseWorkout() {
         speak("Treino retomado.");
         if(btnPause) btnPause.textContent = 'Pausar';
         if(statusLed) statusLed.className = 'led-indicator blinking-green';
+        state.inactivitySeconds = 0; // Reseta inatividade ao retomar
     }
 }
 
@@ -165,7 +235,7 @@ function renderWorkoutSummary(user) {
             <div class="summary-screen">
                 <h2>Treino Concluído!</h2>
                 <p>Parabéns, ${user.name}!</p>
-                <p>Tempo total: ${mins}:${secs}</p>
+                <p>Tempo total ativo: ${mins}:${secs}</p>
                 <button id="btn-home" class="primary-action">Sair (Aproximar Tag)</button>
             </div>
         `;
