@@ -3,7 +3,11 @@ const state = {
     users: {
         '123': { name: 'João', goal: 'Hipertrofia', condition: 'Nenhuma' },
         '456': { name: 'Maria', goal: 'Emagrecimento', condition: 'Dor no joelho' }
-    }
+    },
+    workoutActive: false,
+    workoutSeconds: 0,
+    isPaused: false,
+    timerInterval: null
 };
 
 function initApp() {
@@ -11,12 +15,19 @@ function initApp() {
     if (btnRfid) {
         btnRfid.addEventListener('click', () => simulateRFID('456'));
     }
+    const btnEmergency = document.getElementById('btn-emergency');
+    if (btnEmergency) {
+        btnEmergency.addEventListener('click', () => alert('Emergência acionada! Assistência solicitada.'));
+    }
     renderWelcomeScreen();
 }
 
 function renderWelcomeScreen() {
     const appRoot = document.getElementById('app-root');
     const statusLed = document.getElementById('status-led');
+    state.currentUser = null;
+    if (state.timerInterval) clearInterval(state.timerInterval);
+
     if(statusLed) statusLed.className = 'led-indicator blue';
     if(appRoot) {
         appRoot.innerHTML = `
@@ -56,7 +67,14 @@ function renderDashboard(user) {
 function renderWorkoutScreen(user) {
     const appRoot = document.getElementById('app-root');
     const statusLed = document.getElementById('status-led');
+    
+    state.workoutActive = true;
+    state.workoutSeconds = 0;
+    state.isPaused = false;
+    if(state.timerInterval) clearInterval(state.timerInterval);
+
     if(statusLed) statusLed.className = 'led-indicator blinking-green';
+    
     if(appRoot) {
         appRoot.innerHTML = `
             <div class="workout-screen">
@@ -65,13 +83,78 @@ function renderWorkoutScreen(user) {
                     <h3>Agachamento Livre</h3>
                     <p>Séries: 3 | Repetições: 12</p>
                 </div>
-                <div class="timer">00:00</div>
+                <div class="timer" id="workout-timer">00:00</div>
                 <div class="actions">
                     <button id="btn-pause-workout" class="secondary-action">Pausar</button>
                     <button id="btn-finish-workout" class="danger-action">Finalizar</button>
                 </div>
             </div>
         `;
+
+        startTimer();
+
+        document.getElementById('btn-pause-workout').addEventListener('click', togglePauseWorkout);
+        document.getElementById('btn-finish-workout').addEventListener('click', () => finishWorkout(user));
+    }
+}
+
+function updateTimerDisplay() {
+    const timerDisplay = document.getElementById('workout-timer');
+    if (timerDisplay) {
+        const mins = String(Math.floor(state.workoutSeconds / 60)).padStart(2, '0');
+        const secs = String(state.workoutSeconds % 60).padStart(2, '0');
+        timerDisplay.textContent = `${mins}:${secs}`;
+    }
+}
+
+function startTimer() {
+    state.timerInterval = setInterval(() => {
+        if (!state.isPaused) {
+            state.workoutSeconds++;
+            updateTimerDisplay();
+        }
+    }, 1000);
+}
+
+function togglePauseWorkout() {
+    state.isPaused = !state.isPaused;
+    const btnPause = document.getElementById('btn-pause-workout');
+    const statusLed = document.getElementById('status-led');
+    
+    if (state.isPaused) {
+        if(btnPause) btnPause.textContent = 'Retomar';
+        if(statusLed) statusLed.className = 'led-indicator blue'; // paused state
+    } else {
+        if(btnPause) btnPause.textContent = 'Pausar';
+        if(statusLed) statusLed.className = 'led-indicator blinking-green';
+    }
+}
+
+function finishWorkout(user) {
+    if(state.timerInterval) clearInterval(state.timerInterval);
+    state.workoutActive = false;
+    renderWorkoutSummary(user);
+}
+
+function renderWorkoutSummary(user) {
+    const appRoot = document.getElementById('app-root');
+    const statusLed = document.getElementById('status-led');
+    if(statusLed) statusLed.className = 'led-indicator blue';
+
+    if(appRoot) {
+        const mins = String(Math.floor(state.workoutSeconds / 60)).padStart(2, '0');
+        const secs = String(state.workoutSeconds % 60).padStart(2, '0');
+        
+        appRoot.innerHTML = `
+            <div class="summary-screen">
+                <h2>Treino Concluído!</h2>
+                <p>Parabéns, ${user.name}!</p>
+                <p>Tempo total: ${mins}:${secs}</p>
+                <button id="btn-home" class="primary-action">Sair (Aproximar Tag)</button>
+            </div>
+        `;
+
+        document.getElementById('btn-home').addEventListener('click', renderWelcomeScreen);
     }
 }
 
@@ -85,13 +168,20 @@ function simulateRFID(tagId) {
 }
 
 if (typeof window !== 'undefined' && typeof window.document !== 'undefined') {
-    // Apenas adiciona o listener se estiver rodando no navegador (não no Jest)
     if (typeof process === 'undefined' || process.release.name !== 'node') {
         window.addEventListener('DOMContentLoaded', initApp);
     }
 }
 
-// Exportação para testes
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { initApp, renderWelcomeScreen, renderDashboard, renderWorkoutScreen, simulateRFID, state };
+    module.exports = { 
+        initApp, 
+        renderWelcomeScreen, 
+        renderDashboard, 
+        renderWorkoutScreen, 
+        togglePauseWorkout,
+        finishWorkout,
+        simulateRFID, 
+        state 
+    };
 }
