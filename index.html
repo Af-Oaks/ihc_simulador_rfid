@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S.H.A.P.E. Prototype</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="device-container">
+        <!-- Simulação de LED no hardware -->
+        <div class="led-indicator" id="status-led"></div>
+        
+        <!-- Tela Interativa -->
+        <div class="screen">
+            <div id="app-root"></div>
+        </div>
+        
+        <!-- Botões Físicos do Hardware -->
+        <div class="hardware-buttons">
+            <button id="btn-rfid">Simular Aproximação Tag RFID (Usuário)</button>
+            <button id="btn-emergency" class="btn-red">Botão de Emergência</button>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
