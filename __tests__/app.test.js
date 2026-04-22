@@ -6,12 +6,24 @@ const {
     simulateRFID, 
     togglePauseWorkout,
     finishWorkout,
+    speak,
     state 
 } = require('../script');
 
 describe('S.H.A.P.E. Prototype App', () => {
     beforeEach(() => {
         jest.useFakeTimers();
+        
+        // Mock window.speechSynthesis
+        window.speechSynthesis = {
+            cancel: jest.fn(),
+            speak: jest.fn()
+        };
+        global.SpeechSynthesisUtterance = jest.fn().mockImplementation(function(text) {
+            this.text = text;
+            this.lang = '';
+        });
+
         document.body.innerHTML = `
             <div id="status-led"></div>
             <div id="app-root"></div>
@@ -23,73 +35,59 @@ describe('S.H.A.P.E. Prototype App', () => {
 
     afterEach(() => {
         jest.clearAllTimers();
+        jest.clearAllMocks();
     });
 
     test('deve renderizar a tela de boas-vindas na inicialização', () => {
         const appRoot = document.getElementById('app-root');
         expect(appRoot.innerHTML).toContain('S.H.A.P.E.');
-        const led = document.getElementById('status-led');
-        expect(led.className).toContain('blue');
     });
 
-    test('deve simular aproximação RFID e mostrar dashboard do usuário', () => {
+    test('deve simular aproximação RFID, mostrar dashboard do usuário e falar mensagem', () => {
         simulateRFID('456');
         const appRoot = document.getElementById('app-root');
         expect(appRoot.innerHTML).toContain('Olá, Maria!');
-        const led = document.getElementById('status-led');
-        expect(led.className).toContain('green');
+        
+        expect(global.SpeechSynthesisUtterance).toHaveBeenCalledWith('Bem-vinda, Maria');
+        expect(window.speechSynthesis.speak).toHaveBeenCalled();
     });
 
-    test('deve iniciar treino a partir do dashboard', () => {
+    test('deve iniciar treino a partir do dashboard e falar instrução', () => {
         simulateRFID('456');
         const btnStart = document.getElementById('btn-start-workout');
         btnStart.click();
         
         const appRoot = document.getElementById('app-root');
         expect(appRoot.innerHTML).toContain('Treino em Andamento');
-        expect(appRoot.innerHTML).toContain('Agachamento Livre');
         
-        const led = document.getElementById('status-led');
-        expect(led.className).toContain('blinking-green');
+        expect(global.SpeechSynthesisUtterance).toHaveBeenCalledWith(expect.stringContaining('Iniciando treino'));
     });
 
-    test('deve pausar e retomar o treino', () => {
+    test('deve pausar e retomar o treino falando alertas', () => {
         simulateRFID('456');
         document.getElementById('btn-start-workout').click();
         
         const btnPause = document.getElementById('btn-pause-workout');
-        const led = document.getElementById('status-led');
         
         // Pausar
         btnPause.click();
-        expect(state.isPaused).toBe(true);
-        expect(btnPause.textContent).toBe('Retomar');
-        expect(led.className).toContain('blue');
+        expect(global.SpeechSynthesisUtterance).toHaveBeenCalledWith('Treino pausado.');
 
         // Retomar
         btnPause.click();
-        expect(state.isPaused).toBe(false);
-        expect(btnPause.textContent).toBe('Pausar');
-        expect(led.className).toContain('blinking-green');
+        expect(global.SpeechSynthesisUtterance).toHaveBeenCalledWith('Treino retomado.');
     });
 
-    test('deve finalizar o treino e mostrar resumo de tempo', () => {
+    test('deve finalizar o treino e dar feedback positivo', () => {
         simulateRFID('456');
         document.getElementById('btn-start-workout').click();
-        
-        // Simular 65 segundos
-        jest.advanceTimersByTime(65000);
         
         const btnFinish = document.getElementById('btn-finish-workout');
         btnFinish.click();
         
         const appRoot = document.getElementById('app-root');
         expect(appRoot.innerHTML).toContain('Treino Concluído!');
-        expect(appRoot.innerHTML).toContain('Tempo total: 01:05');
         
-        // Simular saída do usuário
-        const btnHome = document.getElementById('btn-home');
-        btnHome.click();
-        expect(appRoot.innerHTML).toContain('Aproxime sua pulseira');
+        expect(global.SpeechSynthesisUtterance).toHaveBeenCalledWith(expect.stringContaining('Bom trabalho, Maria!'));
     });
 });

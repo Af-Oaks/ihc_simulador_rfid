@@ -10,6 +10,15 @@ const state = {
     timerInterval: null
 };
 
+function speak(text) {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'pt-BR';
+        window.speechSynthesis.speak(utterance);
+    }
+}
+
 function initApp() {
     const btnRfid = document.getElementById('btn-rfid');
     if (btnRfid) {
@@ -17,7 +26,10 @@ function initApp() {
     }
     const btnEmergency = document.getElementById('btn-emergency');
     if (btnEmergency) {
-        btnEmergency.addEventListener('click', () => alert('Emergência acionada! Assistência solicitada.'));
+        btnEmergency.addEventListener('click', () => {
+            speak('Emergência acionada. Aguarde assistência.');
+            alert('Emergência acionada! Assistência solicitada.');
+        });
     }
     renderWelcomeScreen();
 }
@@ -58,6 +70,7 @@ function renderDashboard(user) {
         const btnStart = document.getElementById('btn-start-workout');
         if(btnStart) {
             btnStart.addEventListener('click', () => {
+                speak(`Iniciando treino. Prepare-se para Agachamento Livre.`);
                 renderWorkoutScreen(user);
             });
         }
@@ -122,9 +135,11 @@ function togglePauseWorkout() {
     const statusLed = document.getElementById('status-led');
     
     if (state.isPaused) {
+        speak("Treino pausado.");
         if(btnPause) btnPause.textContent = 'Retomar';
-        if(statusLed) statusLed.className = 'led-indicator blue'; // paused state
+        if(statusLed) statusLed.className = 'led-indicator blue';
     } else {
+        speak("Treino retomado.");
         if(btnPause) btnPause.textContent = 'Pausar';
         if(statusLed) statusLed.className = 'led-indicator blinking-green';
     }
@@ -133,6 +148,7 @@ function togglePauseWorkout() {
 function finishWorkout(user) {
     if(state.timerInterval) clearInterval(state.timerInterval);
     state.workoutActive = false;
+    speak(`Treino concluído. Bom trabalho, ${user.name}!`);
     renderWorkoutSummary(user);
 }
 
@@ -154,15 +170,23 @@ function renderWorkoutSummary(user) {
             </div>
         `;
 
-        document.getElementById('btn-home').addEventListener('click', renderWelcomeScreen);
+        const btnHome = document.getElementById('btn-home');
+        if(btnHome) {
+            btnHome.addEventListener('click', () => {
+                speak("Sessão finalizada. Até logo!");
+                renderWelcomeScreen();
+            });
+        }
     }
 }
 
 function simulateRFID(tagId) {
     const user = state.users[tagId];
     if (user) {
+        speak(`Bem-vinda, ${user.name}`);
         renderDashboard(user);
     } else {
+        speak("Usuário não encontrado.");
         alert("Usuário não encontrado.");
     }
 }
@@ -181,7 +205,8 @@ if (typeof module !== 'undefined' && module.exports) {
         renderWorkoutScreen, 
         togglePauseWorkout,
         finishWorkout,
-        simulateRFID, 
+        simulateRFID,
+        speak,
         state 
     };
 }
